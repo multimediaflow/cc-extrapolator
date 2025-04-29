@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💳 CC Extrapolator PRO (Dark + Progress)</title>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --primary-color: #bb86fc;
+      --secondary-color: #03dac6;
+      --text-color: #ffffff;
+      --card-bg: #1e1e1e;
+      --border-color: #333;
+    }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: var(--primary-color);
+    }
+    .container {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 700px;
+    }
+    textarea, select {
+      width: 100%;
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-size: 1em;
+    }
+    button {
+      background-color: var(--primary-color);
+      color: var(--text-color);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: var(--secondary-color);
+    }
+    pre {
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.95em;
+    }
+    #progressBar {
+      width: 100%;
+      background-color: var(--border-color);
+      border-radius: 8px;
+      margin: 10px 0;
+      height: 20px;
+      overflow: hidden;
+      display: none;
+    }
+    #progress {
+      height: 100%;
+      width: 0%;
+      background-color: var(--secondary-color);
+      transition: width 0.2s;
+    }
+  </style>
+</head>
+<body>
+  <h1>💳 CC Extrapolator PRO</h1>
+  <div class="container">
+    <textarea id="ccInput" rows="3" placeholder="Pega aquí la tarjeta (Formato: 5188999110130073|06|2025|153)"></textarea>
+    <select id="quantity">
+      <option value="10">10 extrapolaciones</option>
+      <option value="50">50 extrapolaciones</option>
+      <option value="100" selected>100 extrapolaciones</option>
+      <option value="500">500 extrapolaciones</option>
+      <option value="1000">1000 extrapolaciones</option>
+    </select>
+    <select id="extrapolateType">
+      <option value="full">Extrapolar completa (CC + Fecha + CVV)</option>
+      <option value="ccOnly">Solo número de tarjeta (CC)</option>
+    </select>
+    <textarea id="generateFormat" rows="3" placeholder="Escribe tu formato extrapolado aquí"></textarea>
+    <button onclick="extrapolate()">Extrapolar</button>
+    <button onclick="copyText()">Copiar Resultados</button>
+    <button onclick="downloadText()">Descargar TXT</button>
+    <div id="progressBar"><div id="progress"></div></div>
+    <pre id="output"></pre>
+  </div>
+
+<script>
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function pad(n) {
+  return n.toString().padStart(2, '0');
+}
+async function extrapolate() {
+  const input = document.getElementById("ccInput").value.trim();
+  const quantity = parseInt(document.getElementById("quantity").value);
+  const extrapolateType = document.getElementById("extrapolateType").value;
+  const output = document.getElementById("output");
+  const progressBar = document.getElementById("progressBar");
+  const progress = document.getElementById("progress");
+
+  if (!/^[0-9]{13,16}\\|[0-9]{2}\\|[0-9]{4}\\|[0-9]{3}$/.test(input) && extrapolateType === "full") {
+    output.textContent = "❌ Formato incorrecto. Usa CC|MM|YYYY|CVV";
+    return;
+  }
+
+  const [cc, mm, yyyy, cvv] = input.split("|");
+  const base = cc.slice(0, 12);
+  let patterns = [];
+  
+  progressBar.style.display = "block";
+  progress.style.width = "0%";
+
+  for (let i = 0; i < quantity; i++) {
+    let randMonth = pad(randomInt(1, 12));
+    let randYear = randomInt(2025, 2028);
+    let randCVV = randomInt(100, 999);
+    if (extrapolateType === "ccOnly") {
+      patterns.push(`${base.slice(0,9)}xxx0xxx`);
+    } else {
+      patterns.push(`${base.slice(0,9)}xxx0xxx|${randMonth}|${randYear}|${randCVV}`);
+    }
+
+    if (i % Math.floor(quantity / 100) === 0) {
+      progress.style.width = Math.floor((i / quantity) * 100) + "%";
+      await new Promise(r => setTimeout(r, 10));  // Pequeña pausa para que se vea el progreso
+    }
+  }
+  progress.style.width = "100%";
+  output.textContent = patterns.join("\\n");
+}
+
+function copyText() {
+  const text = document.getElementById("output").textContent;
+  navigator.clipboard.writeText(text).then(() => alert("✅ Copiado al portapapeles"));
+}
+
+function downloadText() {
+  const text = document.getElementById("output").textContent;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cc_extrapolated.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
